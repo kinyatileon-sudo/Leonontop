@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Neon Rift: Canyon Run</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#071326;color:#eafaff;font-family:system-ui,Arial;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{font-size:clamp(22px,4vw,34px);margin:14px 8px 4px;color:#6df5ff;text-shadow:0 0 14px #00b8ff}
+p{margin:4px 12px 12px;text-align:center;color:#b9d5e7}
+canvas{width:min(960px,96vw);height:auto;border:2px solid #18cce8;border-radius:12px;box-shadow:0 0 25px #007baf55;background:#102b48;touch-action:manipulation}
+.hint{font-size:14px;margin:10px;max-width:900px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>NEON RIFT: CANYON RUN</h1>
+<p>Collect all 5 energy cores. Dodge the drone!</p>
+<canvas id="game" width="960" height="540"></canvas>
+<div class="hint">Controls: WASD or arrow keys to move • Space to dash • On touchscreens, tap the left/right side of the arena to move. Collect the glowing cyan cores and avoid the red drone.</div>
+<script>
+const c=document.getElementById('game'),x=c.getContext('2d');
+let keys={},player={x:480,y:430,r:15},cores=[],drone={x:480,y:160,r:20,vx:2.1},score=0,health=3,over=false,win=false,dash=0;
+function reset(){player={x:480,y:430,r:15};cores=[];for(let i=0;i<5;i++)cores.push({x:130+i*175,y:235+(i%2)*60,r:11,got:false});drone={x:480,y:150,r:20,vx:2.1};score=0;health=3;over=false;win=false;dash=0}
+reset();
+onkeydown=e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space'){dash=12;e.preventDefault()}if((over||win)&&e.key==='Enter')reset()};
+onkeyup=e=>keys[e.key.toLowerCase()]=false;
+c.addEventListener('pointerdown',e=>{let r=c.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*c.width; if(over||win){reset();return} if(px<c.width/2)keys['arrowleft']=true;else keys['arrowright']=true;setTimeout(()=>{keys['arrowleft']=keys['arrowright']=false},180)});
+function draw(){x.clearRect(0,0,960,540);
+let sky=x.createLinearGradient(0,0,0,540);sky.addColorStop(0,'#07142d');sky.addColorStop(1,'#17627b');x.fillStyle=sky;x.fillRect(0,0,960,540);
+// canyon cliffs
+x.fillStyle='#0a2039';x.beginPath();x.moveTo(0,0);x.lineTo(250,0);x.lineTo(340,150);x.lineTo(260,300);x.lineTo(360,540);x.lineTo(0,540);x.fill();
+x.fillStyle='#123b55';x.beginPath();x.moveTo(960,0);x.lineTo(710,0);x.lineTo(630,130);x.lineTo(730,290);x.lineTo(620,540);x.lineTo(960,540);x.fill();
+x.strokeStyle='#1bd8ed';x.lineWidth=3;for(let i=0;i<7;i++){x.beginPath();x.moveTo(0,80+i*60);x.lineTo(250-i*12,95+i*60);x.stroke();x.beginPath();x.moveTo(960,70+i*60);x.lineTo(710+i*10,100+i*60);x.stroke()}
+// floor perspective
+x.fillStyle='#0a3049';x.beginPath();x.moveTo(260,250);x.lineTo(700,250);x.lineTo(960,540);x.lineTo(0,540);x.fill();
+x.strokeStyle='#146c88';x.lineWidth=1;for(let i=0;i<8;i++){let yy=270+i*i*4;x.beginPath();x.moveTo(300-i*20,yy);x.lineTo(660+i*20,yy);x.stroke()}for(let i=-4;i<=4;i++){x.beginPath();x.moveTo(480+i*22,250);x.lineTo(480+i*100,540);x.stroke()}
+// cores
+for(let a of cores)if(!a.got){x.save();x.translate(a.x,a.y);x.shadowColor='#00f6ff';x.shadowBlur=22;x.fillStyle='#8bffff';x.beginPath();x.moveTo(0,-a.r);x.lineTo(a.r*.7,0);x.lineTo(0,a.r);x.lineTo(-a.r*.7,0);x.closePath();x.fill();x.restore()}
+// drone
+drone.x+=drone.vx;if(drone.x<350||drone.x>610)drone.vx*=-1;
+x.save();x.shadowColor='#ff365f';x.shadowBlur=22;x.fillStyle='#ff365f';x.beginPath();x.arc(drone.x,drone.y,drone.r,0,Math.PI*2);x.fill();x.fillStyle='#fff';x.fillRect(drone.x-10,drone.y-4,20,7);x.restore();
+// player
+x.save();x.translate(player.x,player.y);x.shadowColor='#00dfff';x.shadowBlur=18;x.fillStyle='#13d9f2';x.beginPath();x.moveTo(0,-20);x.lineTo(14,12);x.lineTo(0,7);x.lineTo(-14,12);x.closePath();x.fill();x.fillStyle='#fff';x.fillRect(-4,-7,8,5);x.restore();
+// HUD
+x.fillStyle='#061222cc';x.fillRect(18,16,260,72);x.fillStyle='#bffaff';x.font='bold 22px system-ui';x.fillText('CORES: '+score+'/5',32,46);x.fillText('SHIELDS: '+'♥ '.repeat(health),32,75);
+if(!over&&!win){let dx=player.x-drone.x,dy=player.y-drone.y;if(Math.hypot(dx,dy)<player.r+drone.r){health--;player.x=480;player.y=430;drone.y=150;if(health<=0)over=true}
+for(let a of cores)if(!a.got&&Math.hypot(player.x-a.x,player.y-a.y)<player.r+a.r){a.got=true;score++;if(score===5)win=true}
+if(keys['arrowleft']||keys.a)player.x-=dash?8:4;if(keys['arrowright']||keys.d)player.x+=dash?8:4;if(keys['arrowup']||keys.w)player.y-=dash?8:4;if(keys['arrowdown']||keys.s)player.y+=dash?8:4;if(dash>0)dash--;player.x=Math.max(280,Math.min(680,player.x));player.y=Math.max(270,Math.min(510,player.y))}
+if(over||win){x.fillStyle='#031020dd';x.fillRect(180,190,600,160);x.textAlign='center';x.fillStyle=win?'#70ffff':'#ff7394';x.font='bold 40px system-ui';x.fillText(win?'RIFT STABILIZED!':'GAME OVER',480,250);x.fillStyle='#fff';x.font='20px system-ui';x.fillText(win?'You collected every core!':'Your shields ran out.',480,290);x.fillText('Press ENTER or tap to play again',480,325);x.textAlign='left'}
+requestAnimationFrame(draw)}
+draw();
+</script></body></html>
